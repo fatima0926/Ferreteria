@@ -1,4 +1,65 @@
-# FALTA LA PARTE DE LAS IMPORTACIONES Y LA CLASE
+import tkinter as tk
+import sqlite3 
+from tkinter import ttk, messagebox
+from base_datos import buscar_por_categoria, buscar_por_nombre, agregar_producto, ruta_bd
+
+class CatalogoFerreteria():
+    def __init__(self, ventana):
+        self.ventana = ventana
+        self.ventana.title("Catálogo de Ferretería")
+        self.ventana.geometry("1365x750")
+        self.ventana.config(bg="#f4f4f9")
+        global app
+        app = self
+
+        # Título
+        self.titulo = tk.Label(ventana, text="Catálogo de Ferretería La Nueva", font=("Helvetica", 20), bg="#4CAF50", fg="white", pady=10)
+        self.titulo.pack(fill=tk.X)
+
+        # Marco principal del programa 
+        self.main_frame = tk.Frame(ventana, bg="#f4f4f9")
+        self.main_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Cuadro principal  para categorías
+        self.categorias = tk.Frame(self.main_frame, bg="#e0e0e0", width=250)
+        self.categorias.pack(side=tk.LEFT, fill=tk.Y)
+
+        # Scroll para categorías (parte del frame)
+        self.canvas = tk.Canvas(self.categorias, bg="#e0e0e0")
+        self.scrollbar = ttk.Scrollbar(self.categorias, orient="vertical", command=self.canvas.yview)
+        self.cuadro_categorias = tk.Frame(self.canvas, bg="#e0e0e0")
+
+        self.cuadro_categorias.bind(
+            "<Configure>", #EVENTOS
+            lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+        )
+
+        self.canvas.create_window((0, 0), window=self.cuadro_categorias, anchor="nw")
+        self.canvas.configure(yscrollcommand=self.scrollbar.set)
+
+        self.canvas.pack(side="left", fill="both", expand=True)
+        self.scrollbar.pack(side="right", fill="y")
+
+        # Listado de categorías
+        tk.Label(self.cuadro_categorias, text="Categorías", font=("Arial", 14), bg="#e0e0e0").pack(pady=10, padx=30)
+        self.categorias = [
+            'Automotriz', 'Fontanería', 'Jardín y exteriores', 'Lámparas e iluminación', 'Limpieza',
+            'Muebles y organización', 'Pinturas', 'Pisos y cerámica', 'Seguridad hogar y oficina',
+            'Herramientas y protecciones', 'Ferretería', 'Baños', 'Cerrajería', 'Cocina', 'Climatización',
+            'Decoración', 'Construcción', 'Electrodomésticos', 'Electricidad', 'Navidad'
+        ]
+
+        self.boton_categoria = {}
+        for categoria in self.categorias:
+            btn = tk.Button(self.cuadro_categorias, text=categoria, width=45, command=lambda c=categoria: self.mostrar_categoria(c))
+            btn.pack(pady=5, padx=30)
+            btn.bind('<Enter>', lambda e, c=categoria: self.sombrear_categoria(e, c))#Eventos para los sombreados 
+            btn.bind('<Leave>', lambda e, c=categoria: self.desombrear_categoria(e, c))
+            self.boton_categoria[categoria] = btn
+
+
+
+# Falta
 
 
 def guardar_cambios():
