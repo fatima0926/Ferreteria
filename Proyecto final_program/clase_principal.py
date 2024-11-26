@@ -57,34 +57,192 @@ class CatalogoFerreteria():
             btn.bind('<Leave>', lambda e, c=categoria: self.desombrear_categoria(e, c))
             self.boton_categoria[categoria] = btn
 
+        # Área de búsqueda       
+        self.cuadro_busqueda = tk.Frame(self.main_frame, bg="#f4f4f9")
+        self.cuadro_busqueda.pack(fill=tk.X, pady=10)
+
+        tk.Label(self.cuadro_busqueda, text="Buscar producto:", font=("Arial", 14), bg="#f4f4f9").pack(side=tk.LEFT, padx=10)
+        self.entrada_produc = tk.Entry(self.cuadro_busqueda, font=("Arial", 12), width=40)
+        self.entrada_produc.pack(side=tk.LEFT)
+
+        self.entrada_produc.bind("<Return>", self.buscar_producto_evento)#EVENTO PARA BUSCAR UN PORDUCTO BPE
+        tk.Button(self.cuadro_busqueda, text="Buscar", command=self.buscar_producto).pack(side=tk.LEFT, padx=10)
+
+        # Botón de iniciar sesión
+        self.inicio_session = tk.Button(self.cuadro_busqueda, text="Iniciar sesión", font=("Arial", 12), command=self.iniciar_sesion)
+        self.inicio_session.pack(side=tk.LEFT, padx=10)
+
+        # Área de productos
+        self.frame_productos = tk.Frame(self.main_frame, bg="#f4f4f9")
+        self.frame_productos.pack(fill=tk.BOTH, expand=True)
+
+        # Cuadro principal para mostrar productos 
+        self.canvas2 = tk.Canvas(self.frame_productos, bg="#f4f4f9")
+        self.scrollbar2 = ttk.Scrollbar(self.frame_productos, orient="vertical", command=self.canvas2.yview)
+        self.cuadro_mostrar_prod = tk.Frame(self.canvas2, bg="#f4f4f9")
+
+        self.cuadro_mostrar_prod.bind(
+            "<Configure>", #EVENTO
+            lambda e: self.canvas2.configure(scrollregion=self.canvas2.bbox("all"))
+        )
+
+        self.canvas2.create_window((0, 0), window=self.cuadro_mostrar_prod, anchor="nw")
+        self.canvas2.configure(yscrollcommand=self.scrollbar2.set)
+
+        self.canvas2.pack(side="left", fill="both", expand=True)
+        self.scrollbar2.pack(side="right", fill="y")
+
+        # Variable de categoría seleccionada
+        self.categoria_seleccionada = None
+
+        # Muestra que el usuario no esta logeado 
+        self.logged_in = False
+
+    def sombrear_categoria(self, event, categoria):#Eventos para sombreados 
+        self.boton_categoria[categoria].config(bg="#a5d6a7")
+
+    def desombrear_categoria(self, event, categoria):#eventos sombreados 
+        if categoria != self.categoria_seleccionada:
+            self.boton_categoria[categoria].config(bg="#e0e0e0")
+    
+    def mostrar_categoria(self, categoria):
+        self.categoria_seleccionada = categoria
+        # Reinicia el sombreado de todas las categorías
+        for btn in self.boton_categoria.values():
+            btn.config(bg="#e0e0e0") #color de los label 
+        
+        # Sombrear la categoría seleccionada
+        self.boton_categoria[categoria].config(bg="#a5d6a7")
+
+        productos = buscar_por_categoria(categoria)
+        self.mostrar_productos(productos, f"Productos en la categoría: {categoria}")
+
+    def buscar_producto(self):
+        busqueda = self.entrada_produc.get().strip()
+        if not busqueda:
+            messagebox.showwarning("Advertencia", "Ingrese un nombre de producto para buscar.")
+            return
+        
+        productos = buscar_por_nombre(busqueda)
+        
+        if productos:
+            self.mostrar_productos(productos, f"Resultados de búsqueda para: {busqueda}")
+        else:
+            # Si no se encuentran productos, mostrar mensaje de error
+            messagebox.showerror("Producto no encontrado", "No se encontraron productos con ese nombre.")
+
+    def buscar_producto_evento(self, event):#BPE 
+        """Método para buscar un producto al presionar Enter."""
+        self.buscar_producto()#BPE
 
 
-# Falta
+    def mostrar_productos(self, productos, encabezado):
+        # Limpiar los productos anteriores
+        for widget in self.cuadro_mostrar_prod.winfo_children():
+            widget.destroy()
+
+        # Mostrar el encabezado
+        tk.Label(self.cuadro_mostrar_prod, text=encabezado, font=("Arial", 14, "bold"), bg="#f4f4f9").pack(pady=10)
+
+        if self.logged_in:
+            # Si está logueado, mostrar botón de agregar producto
+            tk.Button(self.cuadro_mostrar_prod, 
+                     text="Agregar Producto",
+                     command=lambda: agregar_producto(self.categoria_seleccionada)).pack(pady=10)
+
+        # Crear frame para la tabla
+        tabla_frame = tk.Frame(self.cuadro_mostrar_prod, bg="#f4f4f9")
+        tabla_frame.pack(fill=tk.BOTH, expand=True, padx=10)
+
+        # Encabezados de columna
+        if self.logged_in:
+            encabezados = ['Nombre', 'Precio']  # Si está logueado solo Nombre y Precio
+        else:
+            encabezados = ['Nombre', 'Descripción', 'Precio']  # Si no está logueado, mostrar también Descripción
+
+        # Crear encabezados
+        for i, header in enumerate(encabezados):
+            tk.Label(tabla_frame, text=header, font=("Arial", 12, "bold"), 
+                    bg="#e0e0e0", width=20).grid(row=0, column=i, padx=2, pady=5)
+
+        # Mostrar productos
+        for i, producto in enumerate(productos, start=1):
+            # Mostrar nombre                                    #Alineacion 
+            tk.Label(tabla_frame, text=producto[1], width=45, anchor='w').grid(row=i, column=0, padx=2, pady=2)
+            # Mostrar descripción solo si no está logueado
+            if not self.logged_in:
+                tk.Label(tabla_frame, text=producto[2], wraplength=250, justify=tk.LEFT, anchor='w',height=2).grid(row=i, column=1, padx=2, pady=2, sticky="w")
+
+                # Precio se coloca en la siguiente columna (columna 2)
+                tk.Label(tabla_frame, text=f"${producto[3]:.2f}", width=10).grid(row=i, column=2, padx=2, pady=2)
+            else:
+                # Si está logueado, el precio va en la columna 1 (al lado de nombre)
+                tk.Label(tabla_frame, text=f"${producto[3]:.2f}", width=20).grid(row=i, column=1, padx=2, pady=2)
 
 
-def guardar_cambios():
-            try:
-                precio = float(precio_entry.get())
-                conn = sqlite3.connect(ruta_db)
-                cursor = conn.cursor()
-                cursor.execute('''UPDATE productos 
-                                SET nombre = ?, descripcion = ?, precio = ?
-                                WHERE codigo = ?''', 
-                             (nombre_entry.get(), descripcion_entry.get(), precio, producto[0]))
-                conn.commit()
-                conn.close()
-                messagebox.showinfo("Éxito", "Producto modificado correctamente")
-                ventana_modificar.destroy()
-                self.mostrar_categoria(self.categoria_seleccionada)
-                # Actualizar la categoría después de agregar el producto
-                self.mostrar_categoria(self.categoria_seleccionada)
-            except ValueError:
-                messagebox.showerror("Error", "El precio debe ser un número válido")
-            except sqlite3.Error as e:
-                messagebox.showerror("Error", f"Error al modificar el producto: {str(e)}")
+            if self.logged_in:
+                # Botones de modificar y eliminar
+                btn_frame = tk.Frame(tabla_frame, bg="#f4f4f9")
+                btn_frame.grid(row=i, column=4, padx=5, pady=2)
+
+                tk.Button(btn_frame, text="Modificar", 
+                         command=lambda p=producto: self.abrir_ventana_modificar(p)).pack(side=tk.LEFT, padx=2)
+                tk.Button(btn_frame, text="Eliminar", 
+                         command=lambda p=producto[0]: self.confirmar_eliminar(p)).pack(side=tk.LEFT, padx=2)
+        
+    def abrir_ventana_modificar(self, producto):
+        ventana_modificar = tk.Toplevel(self.ventana)
+        ventana_modificar.title("Modificar Producto")
+        ventana_modificar.geometry("400x300")
+        ventana_modificar.transient(self.ventana)
+        ventana_modificar.grab_set()
+
+        # Campos para modificar
+        tk.Label(ventana_modificar, text="Código:").pack(pady=5)
+        codigo_entry = tk.Entry(ventana_modificar)
+        codigo_entry.insert(0, producto[0])
+        codigo_entry.config(state='readonly')
+        codigo_entry.pack(pady=5)
+
+        tk.Label(ventana_modificar, text="Nombre:").pack(pady=5)
+        nombre_entry = tk.Entry(ventana_modificar)
+        nombre_entry.insert(0, producto[1])
+        nombre_entry.pack(pady=5)
+
+        tk.Label(ventana_modificar, text="Descripción:").pack(pady=5)
+        descripcion_entry = tk.Entry(ventana_modificar)
+        descripcion_entry.insert(0, producto[2])
+        descripcion_entry.pack(pady=5)
+
+        tk.Label(ventana_modificar, text="Precio:").pack(pady=5)
+        precio_entry = tk.Entry(ventana_modificar)
+        precio_entry.insert(0, str(producto[3]))
+        precio_entry.pack(pady=5)
 
 
-        tk.Button(ventana_modificar, text="Guardar cambios", command=guardar_cambios).pack(pady=20)
+        def guardar_cambios():
+                    try:
+                        precio = float(precio_entry.get())
+                        conn = sqlite3.connect(ruta_db)
+                        cursor = conn.cursor()
+                        cursor.execute('''UPDATE productos 
+                                        SET nombre = ?, descripcion = ?, precio = ?
+                                        WHERE codigo = ?''', 
+                                    (nombre_entry.get(), descripcion_entry.get(), precio, producto[0]))
+                        conn.commit()
+                        conn.close()
+                        messagebox.showinfo("Éxito", "Producto modificado correctamente")
+                        ventana_modificar.destroy()
+                        self.mostrar_categoria(self.categoria_seleccionada)
+                        # Actualizar la categoría después de agregar el producto
+                        self.mostrar_categoria(self.categoria_seleccionada)
+                    except ValueError:
+                        messagebox.showerror("Error", "El precio debe ser un número válido")
+                    except sqlite3.Error as e:
+                        messagebox.showerror("Error", f"Error al modificar el producto: {str(e)}")
+
+
+                tk.Button(ventana_modificar, text="Guardar cambios", command=guardar_cambios).pack(pady=20)
 
     def confirmar_eliminar(self, codigo):
         if messagebox.askyesno("Confirmar eliminación", 
